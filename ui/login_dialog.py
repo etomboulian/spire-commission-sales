@@ -1,4 +1,3 @@
-from turtle import width
 from PySide6.QtWidgets import QDialog, QGridLayout, QLabel, QLineEdit, QPushButton, QDialogButtonBox
 from spire import Server as ApiClient
 

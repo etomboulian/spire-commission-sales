@@ -1,5 +1,4 @@
 import requests
-import json
 from .endpoints import root_endpoint_data, company_endpoint_data
 
 

@@ -1,4 +1,3 @@
-from gzip import READ
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
