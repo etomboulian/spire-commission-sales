@@ -10,7 +10,7 @@ from .models.company import (
     TerritoryList,
     SalespersonList,
     InvoiceItemList,
-    # Invoice,
+    Invoice,
     InvoiceList,
     SalesOrder,
     SalesOrderList

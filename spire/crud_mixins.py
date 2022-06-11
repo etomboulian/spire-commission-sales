@@ -14,12 +14,13 @@ class Read(CRUDBase):
         data = self.get()
         return data
 
-    def all(self):
+    def all(self, **kwargs):
         page_size = 100
         results = []
+        filter = kwargs.get('filter', None)
 
         # Get the first page
-        list = self.get(limit=page_size)
+        list = self.get(limit=page_size, filter=filter)
         total_records = list.count
         total_pages = (total_records//page_size) + 1
 
@@ -30,7 +31,7 @@ class Read(CRUDBase):
         # get all remaining pages and extract the data into results list
         for pageNumber in range(1, total_pages):
             list = self.get(start=(
-                pageNumber*page_size), limit=page_size)
+                pageNumber*page_size), limit=page_size, filter=filter)
             for item in list.records:
                 results.append(item)
 

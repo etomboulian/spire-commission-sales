@@ -6,10 +6,10 @@ from pydantic import BaseModel
 
 
 class BackupSchedule(BaseModel):
-    next_backup: str
-    last_success: str
-    interval: str
-    keep: int
+    next_backup: Optional[str]
+    last_success: Optional[str]
+    interval: Optional[str]
+    keep: Optional[int]
 
 
 class Company(BaseModel):

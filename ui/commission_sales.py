@@ -4,13 +4,11 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List
 
-from spire import Server as ApiClient
-
 
 @dataclass
 class InvoiceLine:
     invoice_no: str
-    territory_code: str
+    salesperson_no: str
     part_no: str
     customer_no: str
     amount: float = 0.0
@@ -19,6 +17,7 @@ class InvoiceLine:
 @dataclass
 class Invoice:
     invoice_no: str
+    salesperson_no: str
     customer_no: str
     lines: List[InvoiceLine] = field(default_factory=list)
 
@@ -32,9 +31,8 @@ class Invoice:
 
 
 @dataclass
-class TerritoryCustomerStats:
-    territory_code: str
-    customer_no: str
+class SalespersonStats:
+    salesperson_no: str
     invoices: List[Invoice] = field(default_factory=list)
 
     @property
@@ -51,60 +49,133 @@ class CommissionSales:
         self.start_date = start_date
         self.end_date = end_date
         self.api_client = api_client
-        self.territory_sales_stats = list()
+        self.salesperson_stats_list = list()
+        self.comission_orders_list = list()
 
-    def post_commissions(self, post_date, commission_rate, trial=None):
-        history_items = self.api_client.SalesHistoryItems.all()
+    def post_commission_sales_orders(self, post_date, commission_rate, trial=None):
 
-        # Filter list of all items to only include invoice items where the product is either HOSTING or SUBSCRIPTION
-        filtered_items = list(
-            filter(lambda x:
-                   (x.partNo == 'HOSTING' or x.partNo == 'SUBSCRIPTION')
-                   and x.invoiceDate >= self.start_date and x.invoiceDate <= self.end_date, history_items
-                   )
+        # Filter on the part number in the API Call to get invoice items
+        filter_obj = {
+            "$or": [
+                {"partNo": "HOSTING"},
+                {"partNo": "SUBSCRIPTION"}
+            ]
+        }
+
+        invoice_items_list = self.api_client.SalesHistoryItems.all(
+            filter=filter_obj)
+
+        # Filter list of all HOSTING or SUBSCRIPTION items locally to only include invoice items in the selected date range
+        filtered_invoice_items = list(
+            filter(
+                lambda x: x.invoiceDate >= self.start_date and x.invoiceDate <= self.end_date,
+                invoice_items_list
+            )
         )
 
-        # Create territory customer stats from the list of items filtered to HOSTING or SUBSCRIPTION
-        self.create_territory_customer_stats(filtered_items)
+        self.salesperson_stats_list = CommissionSales.create_salesperson_stats(
+            filtered_invoice_items)
 
-        result = []
+        self.commission_orders_list = self.generate_commission_orders(
+            self.salesperson_stats_list, commission_rate)
 
-        for i in self.territory_sales_stats:
-            sales_order = {}
-            sales_order['customer'] = {}
-            sales_order['customer']['customerNo'] = i.territory_code
+        # NOTE: Restore this when we are ready to send stuff into spire
+        # if not trial:
+        #    self.create_spire_sales_orders(commission_orders_list)
 
-            #new_order = self.api_client.SalesOrders.new(sales_order)
+        CommissionSales.write_results_to_csv(self.commission_orders_list)
+        msg = CommissionSales.check_results(self.commission_orders_list, trial)
 
-            sales_order['referenceNo'] = 'Commission'
-            sales_order['items'] = []
+        return msg
 
-            if i.hosting_sales > 0:
-                line_item = {}
-                line_item['partNo'] = 'HOSTINGCOMM'
-                line_item['orderQty'] = -1
-                line_item['unitPrice'] = (i.hosting_sales * commission_rate)
-                line_item[
-                    'description'] = f'Credit for Server Hosting sales for customer {i.customer_no}'
-                sales_order['items'].append(line_item)
+    def create_salesperson_stats(invoice_items_list):
+        # Populate this array and return it
+        salesperson_stats_list = []
 
-            if i.subscription_sales > 0:
-                line_item = {}
-                line_item['partNo'] = 'SUBSCRIPCOM'
-                line_item['orderQty'] = -1
-                line_item['unitPrice'] = (
-                    i.subscription_sales * commission_rate)
-                line_item[
-                    'description'] = f'Credit for Subscription sales for customer {i.customer_no}'
-                sales_order.items.append(line_item)
+        # Generate the invoice line item objects collection
+        invoice_lines = []
+        for invoice_item in invoice_items_list:
 
-            result.append(sales_order)
+            # Filter out null values of salespersonNo received
+            if invoice_item.invoice.salespersonNo:
+                line = InvoiceLine(
+                    invoice_item.invoiceNo,
+                    invoice_item.invoice.salespersonNo,
+                    invoice_item.partNo,
+                    invoice_item.invoice.customer.customerNo,
+                    invoice_item.extendedPrice
+                )
+                invoice_lines.append(line)
 
+        # Generate the invoice objects collection
+        invoices = []
+        for line in invoice_lines:
+            if existing_invoice := next(filter(lambda x: x.invoice_no == line.invoice_no, invoices), None):
+                existing_invoice.lines.append(line)
+            else:
+                new_invoice = Invoice(
+                    line.invoice_no, line.salesperson_no, line.customer_no)
+                new_invoice.lines.append(line)
+                invoices.append(new_invoice)
+
+        # Generate the salesperson_stats_list data
+        for invoice in invoices:
+            if existing_stats_record := next(filter(lambda x: x.salesperson_no == invoice.salesperson_no, salesperson_stats_list), None):
+                existing_stats_record.invoices.append(invoice)
+            else:
+                new_stats_record = SalespersonStats(invoice.salesperson_no)
+                new_stats_record.invoices.append(invoice)
+                salesperson_stats_list.append(new_stats_record)
+
+        salesperson_stats_list.sort(key=lambda x: x.salesperson_no)
+        return salesperson_stats_list
+
+    def generate_commission_orders(self, salesperson_stats_list, commission_rate):
+        spire_commission_orders = []
+
+        for salesperson in salesperson_stats_list:
+            new_sales_order = {}
+            new_sales_order['customer'] = {}
+            new_sales_order['customer']['customerNo'] = salesperson.salesperson_no
+
+            new_sales_order['referenceNo'] = 'Commission'
+            new_sales_order['items'] = []
+
+            for invoice in salesperson.invoices:
+                if invoice.hosting_sales > 0:
+                    line_item = {}
+                    line_item['partNo'] = 'HOSTINGCOMM'
+                    line_item['orderQty'] = -1
+                    line_item['unitPrice'] = round((
+                        invoice.hosting_sales * commission_rate), 2)
+                    line_item[
+                        'description'] = f'Credit for Server Hosting Customer: {invoice.customer_no}, InvoiceNo: {invoice.invoice_no}'
+                    new_sales_order['items'].append(line_item)
+
+                if invoice.subscription_sales > 0:
+                    line_item = {}
+                    line_item['partNo'] = 'SUBSCRIPCOM'
+                    line_item['orderQty'] = -1
+                    line_item['unitPrice'] = round((
+                        invoice.subscription_sales * commission_rate), 2)
+                    line_item[
+                        'description'] = f'Credit for Subscription sales for customer {invoice.customer_no}'
+                    new_sales_order.items.append(line_item)
+
+            spire_commission_orders.append(new_sales_order)
+
+        return spire_commission_orders
+
+    def create_spire_sales_orders(self, commission_orders_list):
+        for order in commission_orders_list:
+            self.api_client.SalesOrders.new(order)
+
+    def write_results_to_csv(commission_orders_list):
         with open('output.csv', 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['id', 'customer_no', 'reference',
                             'partNo', 'orderQty', 'unitPrice', 'description'])
-            for i, row in enumerate(result):
+            for i, row in enumerate(commission_orders_list):
 
                 result_row_prefix = [i, row['customer']
                                      ['customerNo'], row['referenceNo']]
@@ -114,11 +185,8 @@ class CommissionSales:
                         [item['partNo'], item['orderQty'], item['unitPrice'], item['description']])
                     writer.writerow(result_row)
 
-        if not trial:
-            for item in result:
-                self.api_client.SalesOrders.new(item)
-
-        if len(result) <= 0:
+    def check_results(commission_orders_list, trial):
+        if len(commission_orders_list) <= 0:
             msg = 'No items found to post commissions for'
         elif trial:
             msg = 'Commission Orders saved to output.csv'
@@ -126,57 +194,13 @@ class CommissionSales:
             msg = 'Commission Sales Orders Posted Successfully'
         return msg
 
-    def create_territory_customer_stats(self, item_list):
-        # Get a list of all salespeople and customers from the filtered list
-        # Use a set so that duplicate combinations of territory and customer are ignored
-        territory_customers = (
-            [item.invoice.territoryCode, item.invoice.customer.customerNo] for item in item_list)
-
-        # For each territory and customer combination create a territory_customer stats object
-        for territory_code, customer_no in territory_customers:
-            territory_sales_stat = TerritoryCustomerStats(
-                territory_code=territory_code, customer_no=customer_no)
-            self.territory_sales_stats.append(territory_sales_stat)
-
-        # For each territory_sales stats item that exists
-        for stats_item in self.territory_sales_stats:
-            # Get a list of the relevant data from the invoice lines that belong to this territory and customer
-            invoice_line_list = [
-                [item.invoiceNo, item.invoice.territoryCode,
-                    item.invoice.customer.customerNo, item.partNo, item.extendedPrice]
-                for item in item_list
-                if item.invoice.territoryCode == stats_item.territory_code
-                and item.invoice.customer.customerNo == stats_item.customer_no
-            ]
-
-            # Get a list of the invoiceNo and customerNo in the list to process
-            invoices = ([line[0], line[2]] for line in invoice_line_list)
-
-            for invoice_number, customer_no in invoices:
-                # Create a new invoice
-                _invoice = Invoice(invoice_no=invoice_number,
-                                   customer_no=customer_no)
-
-                # Get the data to fill this invoices lines with
-                this_invoice_lines = [
-                    line for line in invoice_line_list if line[0] == _invoice.invoice_no]
-
-                for line in this_invoice_lines:
-                    # Create a new invoice line and add it to the current invoice
-                    invoice_line = InvoiceLine(
-                        invoice_no=line[0], territory_code=line[1], customer_no=line[2], part_no=line[3], amount=line[4])
-                    _invoice.lines.append(invoice_line)
-
-                # Add the current invoice into the stats_item for this territory and customer combination
-                stats_item.invoices.append(_invoice)
-
 
 def create_commission_sales_orders(api_client, start_date, end_date, post_date, commission_rate, trial=None):
-    commission_rate = float(commission_rate)
+    commission_rate = float(commission_rate)/100.0
 
     commission_sales = CommissionSales(
         api_client, start_date=start_date, end_date=end_date)
-    result = commission_sales.post_commissions(
+    result = commission_sales.post_commission_sales_orders(
         post_date=post_date, commission_rate=commission_rate, trial=trial)
     return result
 

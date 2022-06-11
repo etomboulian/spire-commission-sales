@@ -33,6 +33,7 @@ class LoginDialog(QDialog):
 
         self.label_password = QLabel("Password")
         self.field_password = QLineEdit()
+        self.field_password.setEchoMode(QLineEdit.Password)
 
         self.button_login = QPushButton(text="Login")
         self.button_login.clicked.connect(self.do_login)

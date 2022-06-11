@@ -1,5 +1,8 @@
 import requests
+import urllib.parse
+import json
 from .endpoints import root_endpoint_data, company_endpoint_data
+
 
 
 class ApiClient:
@@ -92,11 +95,17 @@ class ApiClient:
         if kwargs.get('limit'):
             params['limit'] = kwargs.get('limit')
 
+        # Get and send filter into params if it was passed in as kwarg
+        filter = kwargs.get('filter', None)
+        if filter:
+            params['filter'] = json.dumps(filter)
+
         # Set proxies if proxy was passed in as kwarg
-        proxies = None
+        proxies = {'http': 'http://127.0.0.1:8080'}
         if kwargs.get('proxy'):
             proxies = kwargs.get('proxy')
 
+        # Do get request
         try:
             response = self.session.get(
                 url,
@@ -126,8 +135,12 @@ class ApiClient:
             raise Exception("\n".join([header_text, response_code, text]))
 
         created_item_endpoint = first_response.headers.get('Location')
-        second_response = self.session.get(created_item_endpoint)
-        second_response = second_response.json()
+        
+        if created_item_endpoint:
+            second_response = self.session.get(created_item_endpoint)
+            second_response = second_response.json()
 
-        obj = self.deserialize(second_response, True, selected_endpoint)
-        return obj
+            obj = self.deserialize(second_response, True, selected_endpoint)
+            return obj
+        else:
+            raise Exception('Unable to get the created resource')
