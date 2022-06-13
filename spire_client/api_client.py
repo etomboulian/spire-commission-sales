@@ -4,7 +4,6 @@ import json
 from .endpoints import root_endpoint_data, company_endpoint_data
 
 
-
 class ApiClient:
     version = '0.0.1'
     headers = {
@@ -12,7 +11,7 @@ class ApiClient:
         'User-Agent': f'Spire Commission Sales App v{version}'
     }
 
-    proxies = None  # {'http': 'http://127.0.0.1:8080'}
+    proxies = {'http': 'http://127.0.0.1:8080'}
 
     def __init__(self, hostname, username, password, port):
         self.session = requests.Session()
@@ -135,7 +134,7 @@ class ApiClient:
             raise Exception("\n".join([header_text, response_code, text]))
 
         created_item_endpoint = first_response.headers.get('Location')
-        
+
         if created_item_endpoint:
             second_response = self.session.get(created_item_endpoint)
             second_response = second_response.json()

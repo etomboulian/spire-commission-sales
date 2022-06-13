@@ -7,6 +7,8 @@ from .models.root import (
 
 
 from .models.company import (
+    InventoryItem,
+    InventoryItemList,
     TerritoryList,
     SalespersonList,
     InvoiceItemList,
@@ -32,6 +34,12 @@ root_endpoint_data = {
 
 
 company_endpoint_data = {
+    'inventory_items': {
+        'endpoint': 'inventory/items/',
+        'single_type': InventoryItem,
+        'collection_type': InventoryItemList
+    },
+
     'sales_orders': {
         'endpoint': 'sales/orders/',
         'single_type': SalesOrder,

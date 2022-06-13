@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QDialog, QGridLayout, QLabel, QLineEdit, QPushButton, QDialogButtonBox
-from spire import Server as ApiClient
+from spire_client import Server as ApiClient
 
 
 class LoginDialog(QDialog):

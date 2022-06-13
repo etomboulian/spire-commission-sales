@@ -8,6 +8,14 @@ class Company:
         self.company_name = company_name
 
     @property
+    def InventoryItems(self):
+        class InventoryWrapper(Read):
+            def __init__(self, api_client):
+                super().__init__(api_client, 'inventory_items')
+        obj = InventoryWrapper(self.api_client)
+        return obj
+
+    @property
     def SalesOrders(self):
         class SalesOrdersWrapper(Read, Create):
             def __init__(self, api_client):

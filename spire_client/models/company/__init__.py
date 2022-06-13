@@ -1,4 +1,10 @@
 
+
+# Inventory > Item
+from .inventory.item import InventoryItem
+# Inventory > Item List
+from .inventory.items_list import InventoryItemList
+
 # Sales History > Items
 from .sales.history.invoice_items.invoice_item_list import InvoiceItemList
 
@@ -7,11 +13,11 @@ from .sales.history.invoices.invoice_list import InvoiceList
 from .sales.history.invoices.invoice import Invoice
 
 # Sales Orders > Items
-from .sales.orders.order_items.order_item_list import SalesOrderItemList
+from .sales.sales_orders.order_items.order_item_list import SalesOrderItemList
 
 # Sales Orders > Orders
-from .sales.orders.sales_orders.sales_order_list import SalesOrderList
-from .sales.orders.sales_orders.sales_order import SalesOrder
+from .sales.sales_orders.orders.sales_order_list import SalesOrderList
+from .sales.sales_orders.orders.sales_order import SalesOrder
 
 # Salesperson
 from .salesperson_list import SalespersonList
