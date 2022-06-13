@@ -4,8 +4,6 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List
 
-from spire_client.models.company import salesperson_list
-
 
 HOSTING_PRODUCT_CODE = 'HOSTING'
 HOSTING_COMMISSION_RATE = 0.20
@@ -75,6 +73,33 @@ class CommissionSales:
     def post_commission_sales_orders(self, post_date, trial=None):
 
         # Get the partNos to call invoices with
+        commissionable_part_nos = self.get_commissionable_part_numbers()
+
+        # Setup a Filter on the part number in the API Call to get invoice items
+        commissionable_invoice_items = self.get_commissionable_invoice_items(
+            commissionable_part_nos)
+
+        # Filter list of all items to only include invoiced items in the selected date range
+        filtered_commissionable_invoice_items = self.filter_commissionable_invoice_items_by_daterange(
+            commissionable_invoice_items)
+
+        self.salesperson_stats_list = CommissionSales.create_salesperson_stats(
+            filtered_commissionable_invoice_items)
+
+        # Create sales orders in json format to represent the sales commissions to be given
+        self.commission_orders_list = self.generate_commission_orders(
+            self.salesperson_stats_list, post_date)
+
+        if not trial:
+            self.create_spire_sales_orders(self.commission_orders_list)
+
+        CommissionSales.write_results_to_output_csv(
+            self.commission_orders_list)
+
+        return CommissionSales.check_results(self.commission_orders_list, trial)
+
+    # Gets a list of part numbers which are eligible for commission
+    def get_commissionable_part_numbers(self):
         inventory_filter_obj = {
             "$or": [
                 {"groupNo": f"{SUBSCRIPTION_PRODUCT_CODE}"},
@@ -84,43 +109,35 @@ class CommissionSales:
 
         commission_parts = self.api_client.InventoryItems.all(
             filter=inventory_filter_obj)
-        commission_parts_part_nos = [item.partNo for item in commission_parts]
 
-        # Setup a Filter on the part number in the API Call to get invoice items
+        return [item.partNo for item in commission_parts]
+
+    # Takes a list of commissionable part numbers and gets all of the related invoice items
+    def get_commissionable_invoice_items(self, commissionable_part_nos):
         order_filter_obj = {
             "invoiceDate": {"$gte": self.start_date.strftime('%y-%m-%d')},
             "$or": [],
 
         }
 
-        # Populate the filter object with the parts retrieved
-        for part_no in commission_parts_part_nos:
+        for part_no in commissionable_part_nos:
             order_filter_obj['$or'].append({"partNo": f"{part_no}"})
 
         invoice_items_list = self.api_client.SalesHistoryItems.all(
             filter=order_filter_obj)
 
-        # Filter list of all items locally to only include invoiced items in the selected date range
+        return invoice_items_list
+
+    # Filters a list of invoice items to only those between the chosen start and end dates
+    def filter_commissionable_invoice_items_by_daterange(self, commissionable_invoice_items):
         filtered_invoice_items = list(
             filter(
                 lambda x: x.invoiceDate >= self.start_date and x.invoiceDate <= self.end_date,
-                invoice_items_list
+                commissionable_invoice_items
             )
         )
 
-        self.salesperson_stats_list = CommissionSales.create_salesperson_stats(
-            filtered_invoice_items)
-
-        self.commission_orders_list = self.generate_commission_orders(
-            self.salesperson_stats_list, post_date)
-
-        if not trial:
-            self.create_spire_sales_orders(self.commission_orders_list)
-
-        CommissionSales.write_results_to_csv(self.commission_orders_list)
-        msg = CommissionSales.check_results(self.commission_orders_list, trial)
-
-        return msg
+        return filtered_invoice_items
 
     def create_salesperson_stats(invoice_items_list):
         # Populate this array and return it
@@ -169,7 +186,7 @@ class CommissionSales:
 
     def generate_commission_orders(self, salesperson_stats_list, post_date):
         spire_commission_orders = []
-        print("Summary -------")
+
         for salesperson in salesperson_stats_list:
             new_sales_order = {}
             new_sales_order['customer'] = {}
@@ -178,8 +195,8 @@ class CommissionSales:
             new_sales_order['referenceNo'] = 'Commission App Entry'
             new_sales_order['items'] = []
 
-            print(salesperson.salesperson_no, round(salesperson.hosting_sales + salesperson.subscription_sales, 2),
-                  round((salesperson.hosting_sales * HOSTING_COMMISSION_RATE) + (salesperson.subscription_sales * SUBSCRIPTION_COMMISSION_RATE), 2))
+            # print(salesperson.salesperson_no, round(salesperson.hosting_sales + salesperson.subscription_sales, 2),
+            #      round((salesperson.hosting_sales * HOSTING_COMMISSION_RATE) + (salesperson.subscription_sales * SUBSCRIPTION_COMMISSION_RATE), 2))
 
             for invoice in salesperson.invoices:
                 for item in invoice.lines:
@@ -191,7 +208,6 @@ class CommissionSales:
                             (item.hosting_sales * HOSTING_COMMISSION_RATE), 2)
                         line_item[
                             'comment'] = f'Commission for: {item.part_no} | {item.part_description} | {item.customer_name}'
-                        #f'Commission for Hosting | Customer: {item.customer_name} | InvoiceNo: {item.invoice_no} | partNo: {item.part_no}'
                         new_sales_order['items'].append(line_item)
 
                     if item.subscription_sales != 0:
@@ -202,18 +218,19 @@ class CommissionSales:
                             (item.subscription_sales * SUBSCRIPTION_COMMISSION_RATE), 2)
                         line_item[
                             'comment'] = f'Commission for: {item.part_no} | {item.part_description} | {item.customer_name}'
-                        #f'Commission for Subscription | Customer: {item.customer_name} | InvoiceNo: {item.invoice_no} | partNo: {item.part_no}'
                         new_sales_order['items'].append(line_item)
 
             spire_commission_orders.append(new_sales_order)
 
         return spire_commission_orders
 
+    # Create the new commission sales orders in Spire
     def create_spire_sales_orders(self, commission_orders_list):
         for order in commission_orders_list:
             self.api_client.SalesOrders.new(order)
 
-    def write_results_to_csv(commission_orders_list):
+    # Write the commission sales order details out to output.csv
+    def write_results_to_output_csv(commission_orders_list):
         with open('output.csv', 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['id', 'customer_no', 'reference',
@@ -228,6 +245,7 @@ class CommissionSales:
                         [item['partNo'], item['orderQty'], item['unitPrice'], item['comment']])
                     writer.writerow(result_row)
 
+    # Return a message indicating what happened to the GUI
     def check_results(commission_orders_list, trial):
         if len(commission_orders_list) <= 0:
             msg = 'No items found to post commissions for'
@@ -238,8 +256,8 @@ class CommissionSales:
         return msg
 
 
+# Create and post commission sales orders into spire via the api_client
 def create_commission_sales_orders(api_client, start_date, end_date, post_date, trial=None):
-
     commission_sales = CommissionSales(
         api_client, start_date=start_date, end_date=end_date)
     result = commission_sales.post_commission_sales_orders(
