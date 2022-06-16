@@ -95,7 +95,7 @@ class MainWindowWidget(QWidget):
 
             validate(start_date, end_date, post_date)
 
-            from .commission_sales import create_commission_sales_orders
+            from commissions.commission_sales import create_commission_sales_orders
             orders = create_commission_sales_orders(
                 self.parent().api_client,
                 start_date,
