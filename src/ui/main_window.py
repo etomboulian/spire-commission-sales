@@ -35,7 +35,8 @@ class MainWindowWidget(QWidget):
         # Start Date DateEdit field
         self.field_start_date = QDateEdit()
         self.field_start_date.setDisplayFormat("dd-MM-yyyy")
-        self.field_start_date.setDate(QDate.addDays(QDate.currentDate(), -21))
+        self.field_start_date.setDate(
+            QDate(QDate.year(QDate.currentDate()), 1, 1))
         self.layout.addWidget(self.field_start_date, 0, 1)
 
         # End date Label
@@ -45,7 +46,8 @@ class MainWindowWidget(QWidget):
         # End Date DateEdit field
         self.field_end_date = QDateEdit()
         self.field_end_date.setDisplayFormat("dd-MM-yyyy")
-        self.field_end_date.setDate(QDate.addDays(QDate.currentDate(), -7))
+        self.field_end_date.setDate(
+            QDate(QDate.year(QDate.currentDate()), 1, 1))
         self.layout.addWidget(self.field_end_date, 1, 1)
 
         # Post Date Label
@@ -55,7 +57,8 @@ class MainWindowWidget(QWidget):
         # Post Date DateEdit field
         self.field_post_date = QDateEdit()
         self.field_post_date.setDisplayFormat("dd-MM-yyyy")
-        self.field_post_date.setDate(QDate.addDays(QDate.currentDate(), 0))
+        self.field_post_date.setDate(
+            QDate(QDate.year(QDate.currentDate()), 1, 1))
         self.layout.addWidget(self.field_post_date, 2, 1)
 
         # Preview Label

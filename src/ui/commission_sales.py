@@ -89,21 +89,6 @@ class CommissionSales:
 
         return CommissionSales.check_results(self.commission_orders_list, trial)
 
-    # # Gets a list of part numbers which are eligible for commission
-    # def get_commissionable_part_numbers(self):
-    #     inventory_filter_obj = {"$or": []}
-
-    #     for code in SUBSCRIPTION_PRODUCT_CODE:
-    #         inventory_filter_obj['$or'].append({"groupNo": code})
-
-    #     for code in HOSTING_PRODUCT_CODE:
-    #         inventory_filter_obj['$or'].append({"groupNo": code})
-
-    #     commission_parts = self.api_client.InventoryItems.all(
-    #         filter=inventory_filter_obj)
-
-    #     return [item.partNo for item in commission_parts]
-
     def get_commission_rates(self):
         product_code_filter = {"$or": []}
 
@@ -121,7 +106,7 @@ class CommissionSales:
     # Takes a list of commissionable part numbers and gets all of the related invoice items
     def get_commissionable_invoice_items(self):
         order_filter_obj = {
-            "invoiceDate": {"$gte": self.start_date.strftime('%y-%m-%d')},
+            "invoiceDate": {"$gte": self.start_date.strftime('%Y-%m-%d')},
             "$or": [],
         }
         for code in SUBSCRIPTION_PRODUCT_CODE:
