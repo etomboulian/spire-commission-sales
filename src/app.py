@@ -4,7 +4,8 @@ from ui.main_window import MainWindow
 from ui.login_dialog import LoginDialog
 from ui.company_select_dialog import CompanySelectionDialog
 
-if __name__ == "__main__":
+
+def run_application():
     app = QApplication(sys.argv)
 
     window = MainWindow()
@@ -15,7 +16,7 @@ if __name__ == "__main__":
         if company_select_dlg.exec() == QDialog.Accepted:
             window.show()
             app.exec()
-        else:
-            exit()
-    else:
-        exit()
+
+
+if __name__ == '__main__':
+    run_application()

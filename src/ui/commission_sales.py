@@ -1,35 +1,34 @@
 import sys
 import csv
-from datetime import datetime
+from datetime import date, datetime
 from dataclasses import dataclass, field
 from typing import List
 
 
-HOSTING_PRODUCT_CODE = 'HOSTING'
-HOSTING_COMMISSION_RATE = 0.20
-
-SUBSCRIPTION_PRODUCT_CODE = 'SUBSCRIP'
-SUBSCRIPTION_COMMISSION_RATE = 0.25
+HOSTING_PRODUCT_CODE = ['HOSTING']
+SUBSCRIPTION_PRODUCT_CODE = ['SUBSCRIP', 'SUBSA']
 
 
 @dataclass
 class InvoiceLine:
     invoice_no: str
+    invoice_date: date
     salesperson_no: str
     part_no: str
     part_description: str
     inventory_group_no: str
     customer_no: str
     customer_name: str
+    quantity: float
     amount: float = 0.0
 
     @property
     def hosting_sales(self):
-        return self.amount if self.inventory_group_no == HOSTING_PRODUCT_CODE else 0
+        return self.amount if self.inventory_group_no in HOSTING_PRODUCT_CODE else 0
 
     @property
     def subscription_sales(self):
-        return self.amount if self.inventory_group_no == SUBSCRIPTION_PRODUCT_CODE else 0
+        return self.amount if self.inventory_group_no in SUBSCRIPTION_PRODUCT_CODE else 0
 
 
 @dataclass
@@ -41,11 +40,11 @@ class Invoice:
 
     @property
     def hosting_sales(self):
-        return sum([line.amount for line in self.lines if line.inventory_group_no == 'HOSTING'])
+        return sum([line.hosting_sales for line in self.lines])
 
     @property
     def subscription_sales(self):
-        return sum([line.amount for line in self.lines if line.inventory_group_no == 'SUBSCRIP'])
+        return sum([line.subscription_sales for line in self.lines])
 
 
 @dataclass
@@ -71,22 +70,14 @@ class CommissionSales:
         self.comission_orders_list = list()
 
     def post_commission_sales_orders(self, post_date, trial=None):
+        commissionable_invoice_items = self.get_commissionable_invoice_items()
 
-        # Get the partNos to call invoices with
-        commissionable_part_nos = self.get_commissionable_part_numbers()
-
-        # Setup a Filter on the part number in the API Call to get invoice items
-        commissionable_invoice_items = self.get_commissionable_invoice_items(
-            commissionable_part_nos)
-
-        # Filter list of all items to only include invoiced items in the selected date range
         filtered_commissionable_invoice_items = self.filter_commissionable_invoice_items_by_daterange(
             commissionable_invoice_items)
 
         self.salesperson_stats_list = CommissionSales.create_salesperson_stats(
             filtered_commissionable_invoice_items)
 
-        # Create sales orders in json format to represent the sales commissions to be given
         self.commission_orders_list = self.generate_commission_orders(
             self.salesperson_stats_list, post_date)
 
@@ -98,30 +89,46 @@ class CommissionSales:
 
         return CommissionSales.check_results(self.commission_orders_list, trial)
 
-    # Gets a list of part numbers which are eligible for commission
-    def get_commissionable_part_numbers(self):
-        inventory_filter_obj = {
-            "$or": [
-                {"groupNo": f"{SUBSCRIPTION_PRODUCT_CODE}"},
-                {"groupNo": f"{HOSTING_PRODUCT_CODE}"}
-            ]
-        }
+    # # Gets a list of part numbers which are eligible for commission
+    # def get_commissionable_part_numbers(self):
+    #     inventory_filter_obj = {"$or": []}
 
-        commission_parts = self.api_client.InventoryItems.all(
-            filter=inventory_filter_obj)
+    #     for code in SUBSCRIPTION_PRODUCT_CODE:
+    #         inventory_filter_obj['$or'].append({"groupNo": code})
 
-        return [item.partNo for item in commission_parts]
+    #     for code in HOSTING_PRODUCT_CODE:
+    #         inventory_filter_obj['$or'].append({"groupNo": code})
+
+    #     commission_parts = self.api_client.InventoryItems.all(
+    #         filter=inventory_filter_obj)
+
+    #     return [item.partNo for item in commission_parts]
+
+    def get_commission_rates(self):
+        product_code_filter = {"$or": []}
+
+        for code in SUBSCRIPTION_PRODUCT_CODE:
+            product_code_filter['$or'].append({"code": code})
+
+        for code in HOSTING_PRODUCT_CODE:
+            product_code_filter['$or'].append({"code": code})
+
+        product_code_list = self.api_client.InventoryGroups.all(
+            filter=product_code_filter)
+
+        return {code.code: (float(code.margin)/100.0) for code in product_code_list}
 
     # Takes a list of commissionable part numbers and gets all of the related invoice items
-    def get_commissionable_invoice_items(self, commissionable_part_nos):
+    def get_commissionable_invoice_items(self):
         order_filter_obj = {
             "invoiceDate": {"$gte": self.start_date.strftime('%y-%m-%d')},
             "$or": [],
-
         }
+        for code in SUBSCRIPTION_PRODUCT_CODE:
+            order_filter_obj['$or'].append({"inventoryGroupNo": f"{code}"})
 
-        for part_no in commissionable_part_nos:
-            order_filter_obj['$or'].append({"partNo": f"{part_no}"})
+        for code in HOSTING_PRODUCT_CODE:
+            order_filter_obj['$or'].append({"inventoryGroupNo": f"{code}"})
 
         invoice_items_list = self.api_client.SalesHistoryItems.all(
             filter=order_filter_obj)
@@ -151,13 +158,15 @@ class CommissionSales:
             if invoice_item.invoice.salespersonNo:
                 line = InvoiceLine(
                     invoice_no=invoice_item.invoiceNo,
+                    invoice_date=invoice_item.invoiceDate,
                     salesperson_no=invoice_item.invoice.salespersonNo,
                     part_no=invoice_item.partNo,
                     part_description=invoice_item.description,
                     inventory_group_no=invoice_item.inventoryGroupNo,
                     customer_no=invoice_item.invoice.customer.customerNo,
                     customer_name=invoice_item.invoice.customer.name,
-                    amount=invoice_item.extendedPrice
+                    quantity=invoice_item.committedQty,
+                    amount=invoice_item.unitPrice
                 )
                 invoice_lines.append(line)
 
@@ -185,6 +194,8 @@ class CommissionSales:
         return salesperson_stats_list
 
     def generate_commission_orders(self, salesperson_stats_list, post_date):
+        commission_rates = self.get_commission_rates()
+
         spire_commission_orders = []
 
         for salesperson in salesperson_stats_list:
@@ -192,32 +203,32 @@ class CommissionSales:
             new_sales_order['customer'] = {}
             new_sales_order['customer']['customerNo'] = salesperson.salesperson_no
             new_sales_order['orderDate'] = post_date.strftime('%Y-%m-%d')
-            new_sales_order['referenceNo'] = 'Commission App Entry'
+            new_sales_order['referenceNo'] = 'Commission'
             new_sales_order['items'] = []
-
-            # print(salesperson.salesperson_no, round(salesperson.hosting_sales + salesperson.subscription_sales, 2),
-            #      round((salesperson.hosting_sales * HOSTING_COMMISSION_RATE) + (salesperson.subscription_sales * SUBSCRIPTION_COMMISSION_RATE), 2))
 
             for invoice in salesperson.invoices:
                 for item in invoice.lines:
+
+                    date_str = item.invoice_date.strftime('%B %y')
+
                     if item.hosting_sales != 0:
                         line_item = {}
                         line_item['partNo'] = 'SUBHOST'
-                        line_item['orderQty'] = -1
-                        line_item['unitPrice'] = round(
-                            (item.hosting_sales * HOSTING_COMMISSION_RATE), 2)
+                        line_item['orderQty'] = -1 * item.quantity
+                        line_item['unitPrice'] = round(item.hosting_sales *
+                                                       commission_rates[item.inventory_group_no], 2)
                         line_item[
-                            'comment'] = f'Commission for: {item.part_no} | {item.part_description} | {item.customer_name}'
+                            'comment'] = f'{item.part_description} | {item.customer_name} | {date_str}'
                         new_sales_order['items'].append(line_item)
 
                     if item.subscription_sales != 0:
                         line_item = {}
                         line_item['partNo'] = 'SUBCOMM'
-                        line_item['orderQty'] = -1
-                        line_item['unitPrice'] = round(
-                            (item.subscription_sales * SUBSCRIPTION_COMMISSION_RATE), 2)
+                        line_item['orderQty'] = -1 * item.quantity
+                        line_item['unitPrice'] = round(item.subscription_sales *
+                                                       commission_rates[item.inventory_group_no], 2)
                         line_item[
-                            'comment'] = f'Commission for: {item.part_no} | {item.part_description} | {item.customer_name}'
+                            'comment'] = f'{item.part_description} | {item.customer_name} | {date_str}'
                         new_sales_order['items'].append(line_item)
 
             spire_commission_orders.append(new_sales_order)

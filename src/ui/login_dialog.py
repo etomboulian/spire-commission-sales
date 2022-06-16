@@ -1,10 +1,24 @@
-from PySide6.QtWidgets import QDialog, QGridLayout, QLabel, QLineEdit, QPushButton, QDialogButtonBox
+from PySide6.QtWidgets import (
+    QDialog,
+    QGridLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QDialogButtonBox,
+    QMessageBox
+)
+
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QFont, QScreen
 from spire_client import Server as ApiClient
+from .main_window import font
 
 
 class LoginDialog(QDialog):
     def __init__(self, parent):
         super().__init__(parent)
+        self.setWindowTitle("Commission Sales App - Login")
+        self.set_size_and_position()
         self.setUI()
 
     def do_login(self):
@@ -17,9 +31,26 @@ class LoginDialog(QDialog):
             self.parent().api_client = ApiClient(hostname, username, password, port=port)
             self.accept()
         except Exception as e:
-            raise e
+            # Bubble up any exceptions on login to the UI
+            error_dlg = QMessageBox(self)
+            error_dlg.setWindowTitle('Error')
+            error_dlg.setText(str(e))
+            error_dlg.exec()
+
+    def center(self):
+        qr = self.frameGeometry()
+        center_point = QScreen().availableGeometry().center()
+        qr.moveCenter(center_point)
+
+    def set_size_and_position(self):
+        window_size = QSize(300, 200)
+        self.center()
+        self.resize(window_size)
 
     def setUI(self):
+        self.setFont(font)
+
+        #self.setStyleSheet("QLabel {font: Arial 12pt}")
         self.layout = QGridLayout()
 
         self.label_hostname = QLabel("Hostname")

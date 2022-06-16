@@ -1,12 +1,13 @@
 
 from .models.root import (
     Status,
-    # Company,
     CompanyList
 )
 
 
 from .models.company import (
+    InventoryGroup,     # inventory group == product code
+    InventoryGroupList,
     InventoryItem,
     InventoryItemList,
     TerritoryList,
@@ -34,6 +35,12 @@ root_endpoint_data = {
 
 
 company_endpoint_data = {
+    'inventory_groups': {
+        'endpoint': 'inventory/groups/',
+        'single_type': InventoryGroup,
+        'collection_type': InventoryGroupList
+    },
+
     'inventory_items': {
         'endpoint': 'inventory/items/',
         'single_type': InventoryItem,

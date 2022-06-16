@@ -1,9 +1,14 @@
 from PySide6.QtWidgets import QDialog, QLabel, QGridLayout, QComboBox, QPushButton
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QScreen
+from .main_window import font
 
 
 class CompanySelectionDialog(QDialog):
     def __init__(self, parent):
         super().__init__(parent)
+        self.setWindowTitle("Commission Sales App - Select Company")
+        self.setSize()
         self.setUI()
 
     def select_company(self):
@@ -11,8 +16,20 @@ class CompanySelectionDialog(QDialog):
         self.parent().api_client = self.parent().api_client.Company(company_name)
         self.accept()
 
+    def center(self):
+        qr = self.frameGeometry()
+        center_point = QScreen().availableGeometry().center()
+        qr.moveCenter(center_point)
+
+    def setSize(self):
+        window_size = QSize(300, 100)
+        self.center()
+        self.resize(window_size)
+
     def setUI(self):
         self.layout = QGridLayout()
+        self.setFont(font)
+
         self.label_select_company = QLabel("Select a company")
         companies_list = self.parent().api_client.Companies.list()
 

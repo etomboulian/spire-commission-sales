@@ -8,7 +8,7 @@ class ApiClient:
     version = '0.0.1'
     headers = {
         'Content-Type': 'application/json',
-        'User-Agent': f'Spire Commission Sales App v{version}'
+        'User-Agent': f'Spire API Client v{version}'
     }
 
     proxies = {'http': 'http://127.0.0.1:8080'}
@@ -33,6 +33,14 @@ class ApiClient:
         # for GET requests we expect a 200 response
         if request_type == 'GET':
             if response.status_code != 200:
+                raise Exception(f'{response.status_code}, {response.text}')
+        # for POST requests we expect a 201 response
+        elif request_type == 'POST':
+            if response.status_code != 201:
+                raise Exception(f'{response.status_code}, {response.text}')
+        # for DELETE requests we expect a 204 response
+        elif request_type == 'DELETE':
+            if response.status_code != 204:
                 raise Exception(f'{response.status_code}, {response.text}')
 
     def get_selected_endpoint(self, endpoint_name):
@@ -76,49 +84,50 @@ class ApiClient:
         return obj
 
     def get(self, endpoint_name, id=None, **kwargs):
-        # Get selected endpoint data
+        # Get selected endpoint data and get the URL from it
         selected_endpoint = self.get_selected_endpoint(endpoint_name)
-        url = selected_endpoint['url']
 
-        is_single_type = False
+        is_single_record_type = True if id else False
 
-        if id:
-            is_single_type = True
+        if is_single_record_type:
             url += id
 
-        params = {}
+        def populate_params():
+            params = {}
 
-        # Account for pagination parameters (start, limit) passed in as kwargs
-        if kwargs.get('start'):
-            params['start'] = kwargs.get('start')
-        if kwargs.get('limit'):
-            params['limit'] = kwargs.get('limit')
+            # Account for pagination parameters (start, limit) passed in as kwargs
+            if kwargs.get('start'):
+                params['start'] = kwargs.get('start')
+            if kwargs.get('limit'):
+                params['limit'] = kwargs.get('limit')
 
-        # Get and send filter into params if it was passed in as kwarg
-        filter = kwargs.get('filter', None)
-        if filter:
-            params['filter'] = json.dumps(filter)
+            # Get and send filter into params if it was passed in as kwarg
+            filter = kwargs.get('filter', None)
+            if filter:
+                params['filter'] = json.dumps(filter)
 
-        # Set proxies if proxy was passed in as kwarg
+            # Set proxies if proxy was passed in as kwarg
+            if kwargs.get('proxy'):
+                proxies = kwargs.get('proxy')
+
+            return params
         proxies = {'http': 'http://127.0.0.1:8080'}
-        if kwargs.get('proxy'):
-            proxies = kwargs.get('proxy')
-
         # Do get request
         try:
             response = self.session.get(
-                url,
-                params=params,
+                selected_endpoint['url'],
+                params=populate_params(),
                 proxies=proxies
             )
 
-        except Exception as e:
-            print(e)
+            self.__class__._check_response('GET', response)
+            response = response.json()
+            obj = self.deserialize(
+                response, is_single_record_type, selected_endpoint)
+            return obj
 
-        self.__class__._check_response('GET', response)
-        response = response.json()
-        obj = self.deserialize(response, is_single_type, selected_endpoint)
-        return obj
+        except Exception as e:
+            raise e
 
     def new(self, endpoint_name, data):
         selected_endpoint = self.get_selected_endpoint(endpoint_name)
@@ -133,10 +142,13 @@ class ApiClient:
         except:
             raise Exception("\n".join([header_text, response_code, text]))
 
+        self.__class__._check_response('POST', first_response)
+
         created_item_endpoint = first_response.headers.get('Location')
 
         if created_item_endpoint:
             second_response = self.session.get(created_item_endpoint)
+            self.__class__._check_response('GET', second_response)
             second_response = second_response.json()
 
             obj = self.deserialize(second_response, True, selected_endpoint)

@@ -11,8 +11,11 @@ from PySide6.QtWidgets import (
     QDialog
 )
 from PySide6.QtCore import QSize, QDate, QRect
+from PySide6.QtGui import QFont, QScreen
 from datetime import date, timedelta
 import traceback
+
+font = QFont('Arial', 12)
 
 
 class MainWindowWidget(QWidget):
@@ -21,6 +24,8 @@ class MainWindowWidget(QWidget):
         self.setUI()
 
     def setUI(self):
+        self.setFont(font)
+
         self.layout = QGridLayout()
 
         # Start Date Label
@@ -117,10 +122,19 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Commission Sales App")
-        # self.setFixedSize(QSize(300,200))
-
+        self.setSize()
         self.setUI()
 
     def setUI(self):
         self.widget = MainWindowWidget(self)
         self.setCentralWidget(self.widget)
+
+    def center(self):
+        qr = self.frameGeometry()
+        center_point = QScreen().availableGeometry().center()
+        qr.moveCenter(center_point)
+
+    def setSize(self):
+        window_size = QSize(300, 210)
+        self.center()
+        self.resize(window_size)

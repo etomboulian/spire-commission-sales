@@ -1,0 +1,1 @@
+pyinstaller --onefile --noconsole ./src/app.py

@@ -36,42 +36,42 @@ class Invoice(BaseModel):
 class InvoiceItem(BaseModel):
     id: int
     invoiceNo: str
-    recNo: int
-    whse: str
-    partNo: str
+    recNo: Optional[int]
+    whse: Optional[str]
+    partNo: Optional[str]
     itemType: int
-    description: str
-    invoiceDate: date
-    orderQty: float
-    committedQty: float
-    backorderQty: float
-    unitPrice: float
+    description: Optional[str]
+    invoiceDate: Optional[date]
+    orderQty: Optional[float]
+    committedQty: Optional[float]
+    backorderQty: Optional[float]
+    unitPrice: Optional[float]
     extendedPrice: Optional[float]
-    sellMeasure: str
-    taxApplicable: List[bool]
+    sellMeasure: Optional[str]
+    taxApplicable: Optional[List[bool]]
     averageCost: Optional[float]
     averageMargin: Optional[float]
     currentCost: Optional[float]
     currentMargin: Optional[float]
     standardCost: Optional[float]
     standardMargin: Optional[float]
-    lineDiscountPct: float
-    discountPct: float
+    lineDiscountPct: Optional[float]
+    discountPct: Optional[float]
     inventoryGroupNo: Optional[str]
     requiredDate: Optional[str]
     invoice: Invoice
     employeeNo: Optional[str]
     promoCode: Optional[str]
-    inventoryGL: str
-    revenueGL: str
-    costGL: str
+    inventoryGL: Optional[str]
+    revenueGL: Optional[str]
+    costGL: Optional[str]
     refNo: Optional[str]
-    upcCode: str
+    upcCode: Optional[str]
     levyCode: Optional[str]
-    jobNo: str
+    jobNo: Optional[str]
     jobAccountNo: Optional[str]
     comment: Optional[str]
-    weight: str
+    weight: Optional[str]
 
 
 class InvoiceItemList(BaseModel):

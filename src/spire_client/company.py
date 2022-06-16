@@ -8,6 +8,14 @@ class Company:
         self.company_name = company_name
 
     @property
+    def InventoryGroups(self):
+        class InventoryGroupWrapper(Read):
+            def __init__(self, api_client):
+                super().__init__(api_client, 'inventory_groups')
+        obj = InventoryGroupWrapper(self.api_client)
+        return obj
+
+    @property
     def InventoryItems(self):
         class InventoryWrapper(Read):
             def __init__(self, api_client):
