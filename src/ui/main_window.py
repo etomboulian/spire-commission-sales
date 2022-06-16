@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QDialog
 )
-from PySide6.QtCore import QSize, QDate, QRect
+from PySide6.QtCore import QSize, QDate, QRect, QSettings
 from PySide6.QtGui import QFont, QScreen
 from datetime import date, timedelta
 import traceback
@@ -21,12 +21,22 @@ font = QFont('Arial', 12)
 class MainWindowWidget(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
+        self.settings = QSettings('Spire-Evan', 'Spire Commission Sales App')
+        self.settings_list = ['start_date', 'end_date', 'post_date']
         self.setUI()
 
     def setUI(self):
         self.setFont(font)
 
         self.layout = QGridLayout()
+        current_settings = self.load_settings(self.settings_list)
+
+        existing_start_date = current_settings.get(
+            self.settings_list[0]) if current_settings else None
+        existing_end_date = current_settings.get(
+            self.settings_list[1]) if current_settings else None
+        existing_post_date = current_settings.get(
+            self.settings_list[2]) if current_settings else None
 
         # Start Date Label
         self.label_start_date = QLabel('Start Date')
@@ -35,8 +45,12 @@ class MainWindowWidget(QWidget):
         # Start Date DateEdit field
         self.field_start_date = QDateEdit()
         self.field_start_date.setDisplayFormat("dd-MM-yyyy")
-        self.field_start_date.setDate(
-            QDate(QDate.year(QDate.currentDate()), 1, 1))
+
+        if existing_start_date:
+            self.field_start_date.setDate(QDate(existing_start_date))
+        else:
+            self.field_start_date.setDate(
+                QDate(QDate.year(QDate.currentDate()), 1, 1))
         self.layout.addWidget(self.field_start_date, 0, 1)
 
         # End date Label
@@ -46,8 +60,11 @@ class MainWindowWidget(QWidget):
         # End Date DateEdit field
         self.field_end_date = QDateEdit()
         self.field_end_date.setDisplayFormat("dd-MM-yyyy")
-        self.field_end_date.setDate(
-            QDate(QDate.year(QDate.currentDate()), 1, 1))
+        if existing_end_date:
+            self.field_end_date.setDate(QDate(existing_end_date))
+        else:
+            self.field_end_date.setDate(
+                QDate(QDate.year(QDate.currentDate()), 1, 1))
         self.layout.addWidget(self.field_end_date, 1, 1)
 
         # Post Date Label
@@ -57,8 +74,11 @@ class MainWindowWidget(QWidget):
         # Post Date DateEdit field
         self.field_post_date = QDateEdit()
         self.field_post_date.setDisplayFormat("dd-MM-yyyy")
-        self.field_post_date.setDate(
-            QDate(QDate.year(QDate.currentDate()), 1, 1))
+        if existing_post_date:
+            self.field_post_date.setDate(QDate(existing_post_date))
+        else:
+            self.field_post_date.setDate(
+                QDate(QDate.year(QDate.currentDate()), 1, 1))
         self.layout.addWidget(self.field_post_date, 2, 1)
 
         # Preview Label
@@ -78,6 +98,18 @@ class MainWindowWidget(QWidget):
 
         self.setLayout(self.layout)
 
+    def save_settings(self, saveSettings):
+        for key, value in saveSettings.items():
+            self.settings.setValue(key, value)
+
+    def load_settings(self, setting_list):
+        settings = {}
+        for setting in setting_list:
+            if self.settings.contains(setting):
+                setting_value = self.settings.value(setting)
+                settings[setting] = setting_value
+        return settings
+
     def post_commissions(self):
         def validate(start_date, end_date, post_date):
             if start_date < (date.today() - timedelta(days=730)):
@@ -88,10 +120,17 @@ class MainWindowWidget(QWidget):
                 raise Exception("Post Date is more than 2 years in the past")
 
         try:
+
             start_date = self.field_start_date.date().toPython()
             end_date = self.field_end_date.date().toPython()
             post_date = self.field_post_date.date().toPython()
             is_trial = self.checkbox_preview_post.isChecked()
+
+            self.save_settings({
+                self.settings_list[0]: start_date,
+                self.settings_list[1]: end_date,
+                self.settings_list[2]: post_date
+            })
 
             validate(start_date, end_date, post_date)
 

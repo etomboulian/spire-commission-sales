@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QMessageBox
 )
 
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSize, QSettings
 from PySide6.QtGui import QFont, QScreen
 from spire_client import Server as ApiClient
 from .main_window import font
@@ -19,13 +19,34 @@ class LoginDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Commission Sales App - Login")
         self.set_size_and_position()
+        self.settings = QSettings('Spire-Evan', 'Spire Commission Sales App')
+        self.settings_list = ['hostname', 'port', 'username']
         self.setUI()
+
+    def load_settings(self, setting_list):
+        settings = {}
+        for setting in setting_list:
+            if self.settings.contains(setting):
+                setting_value = self.settings.value(setting)
+                settings[setting] = setting_value
+        return settings
+
+    def save_settings(self, settings):
+        for key, value in settings.items():
+            self.settings.setValue(key, value)
 
     def do_login(self):
         hostname = self.field_hostname.text()
         port = self.field_port.text()
         username = self.field_username.text()
         password = self.field_password.text()
+
+        settings = {
+            self.settings_list[0]: hostname,
+            self.settings_list[1]: port,
+            self.settings_list[2]: username
+        }
+        self.save_settings(settings)
 
         try:
             self.parent().api_client = ApiClient(hostname, username, password, port=port)
@@ -50,17 +71,31 @@ class LoginDialog(QDialog):
     def setUI(self):
         self.setFont(font)
 
+        current_settings = self.load_settings(self.settings_list)
+        current_hostname = current_settings.get(
+            self.settings_list[0]) if current_settings else None
+        current_port = current_settings.get(
+            self.settings_list[1]) if current_settings else None
+        current_username = current_settings.get(
+            self.settings_list[2]) if current_settings else None
+
         #self.setStyleSheet("QLabel {font: Arial 12pt}")
         self.layout = QGridLayout()
 
         self.label_hostname = QLabel("Hostname")
         self.field_hostname = QLineEdit()
+        hostname_value = current_hostname if current_hostname else None
+        self.field_hostname.setText(hostname_value)
 
         self.label_port = QLabel("Port")
         self.field_port = QLineEdit(text='10880')
+        port_value = current_port if current_port else None
+        self.field_port.setText(port_value)
 
         self.label_username = QLabel("Username")
         self.field_username = QLineEdit()
+        username_value = current_username if current_username else None
+        self.field_username.setText(username_value)
 
         self.label_password = QLabel("Password")
         self.field_password = QLineEdit()
