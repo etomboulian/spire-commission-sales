@@ -11,15 +11,13 @@ class ApiClient:
         'User-Agent': f'Spire API Client v{version}'
     }
 
-    proxies = {'http': 'http://127.0.0.1:8080'}
-
     def __init__(self, hostname, username, password, port):
         self.session = requests.Session()
         self.session.auth = (username, password)
         self.session.headers.update(self.headers)
         self._company_name = None
 
-        self.base_url = f'http://{hostname}:{port}/api/v2/'
+        self.base_url = f'https://{hostname}:{port}/api/v2/'
 
     @property
     def company_name(self):
@@ -111,13 +109,12 @@ class ApiClient:
                 proxies = kwargs.get('proxy')
 
             return params
-        proxies = {'http': 'http://127.0.0.1:8080'}
+
         # Do get request
         try:
             response = self.session.get(
                 selected_endpoint['url'],
-                params=populate_params(),
-                proxies=proxies
+                params=populate_params()
             )
 
             self.__class__._check_response('GET', response)
