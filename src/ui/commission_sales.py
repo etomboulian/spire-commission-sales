@@ -203,7 +203,7 @@ class CommissionSales:
                         line_item['unitPrice'] = round(item.hosting_sales *
                                                        commission_rates[item.inventory_group_no], 2)
                         line_item[
-                            'comment'] = f'{item.part_description} | {item.customer_name} | {date_str}'
+                            'description'] = f'{item.part_description} | {date_str} | {item.customer_name}'[:80]
                         new_sales_order['items'].append(line_item)
 
                     if item.subscription_sales != 0:
@@ -213,7 +213,7 @@ class CommissionSales:
                         line_item['unitPrice'] = round(item.subscription_sales *
                                                        commission_rates[item.inventory_group_no], 2)
                         line_item[
-                            'comment'] = f'{item.part_description} | {item.customer_name} | {date_str}'
+                            'description'] = f'{item.part_description} | {date_str} | {item.customer_name}'[:80]
                         new_sales_order['items'].append(line_item)
 
             spire_commission_orders.append(new_sales_order)
@@ -238,7 +238,7 @@ class CommissionSales:
                 for item in row['items']:
                     result_row = result_row_prefix.copy()
                     result_row.extend(
-                        [item['partNo'], item['orderQty'], item['unitPrice'], item['comment']])
+                        [item['partNo'], item['orderQty'], item['unitPrice'], item['description']])
                     writer.writerow(result_row)
 
     # Return a message indicating what happened to the GUI
