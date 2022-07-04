@@ -44,6 +44,7 @@ class MainWindowWidget(QWidget):
 
         # Start Date DateEdit field
         self.field_start_date = QDateEdit()
+        self.field_start_date.setCalendarPopup(True)
         self.field_start_date.setDisplayFormat("dd-MM-yyyy")
 
         if existing_start_date:
@@ -59,6 +60,7 @@ class MainWindowWidget(QWidget):
 
         # End Date DateEdit field
         self.field_end_date = QDateEdit()
+        self.field_end_date.setCalendarPopup(True)
         self.field_end_date.setDisplayFormat("dd-MM-yyyy")
         if existing_end_date:
             self.field_end_date.setDate(QDate(existing_end_date))
