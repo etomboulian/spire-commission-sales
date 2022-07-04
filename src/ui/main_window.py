@@ -75,6 +75,7 @@ class MainWindowWidget(QWidget):
 
         # Post Date DateEdit field
         self.field_post_date = QDateEdit()
+        self.field_post_date.setCalendarPopup(True)
         self.field_post_date.setDisplayFormat("dd-MM-yyyy")
         if existing_post_date:
             self.field_post_date.setDate(QDate(existing_post_date))
