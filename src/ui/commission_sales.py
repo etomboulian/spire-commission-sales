@@ -188,6 +188,7 @@ class CommissionSales:
             new_sales_order['customer'] = {}
             new_sales_order['customer']['customerNo'] = salesperson.salesperson_no
             new_sales_order['orderDate'] = post_date.strftime('%Y-%m-%d')
+            new_sales_order['invoiceDate'] = post_date.strftime('%Y-%m-%d')
             new_sales_order['referenceNo'] = 'Commission'
             new_sales_order['items'] = []
 
