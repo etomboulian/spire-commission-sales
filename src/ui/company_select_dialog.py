@@ -22,7 +22,7 @@ class CompanySelectionDialog(QDialog):
         qr.moveCenter(center_point)
 
     def setSize(self):
-        window_size = QSize(300, 100)
+        window_size = QSize(350, 100)
         self.center()
         self.resize(window_size)
 

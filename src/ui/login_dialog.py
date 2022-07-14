@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
 
 from PySide6.QtCore import QSize, QSettings
 from PySide6.QtGui import QFont, QScreen
-from spire_client import Server as ApiClient
+from spire import Server as ApiClient
 from .main_window import font
 
 
@@ -64,7 +64,7 @@ class LoginDialog(QDialog):
         qr.moveCenter(center_point)
 
     def set_size_and_position(self):
-        window_size = QSize(300, 200)
+        window_size = QSize(400, 250)
         self.center()
         self.resize(window_size)
 
@@ -119,7 +119,7 @@ class LoginDialog(QDialog):
         self.layout.addWidget(self.label_password, 3, 0,)
         self.layout.addWidget(self.field_password, 3, 1)
 
-        self.layout.addWidget(self.button_login, 4, 0)
-        self.layout.addWidget(self.button_cancel, 4, 1)
+        self.layout.addWidget(self.button_login, 4, 0, 1, 2)
+        self.layout.addWidget(self.button_cancel, 5, 0, 1, 2)
 
         self.setLayout(self.layout)

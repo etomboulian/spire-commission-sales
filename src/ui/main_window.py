@@ -180,6 +180,6 @@ class MainWindow(QMainWindow):
         qr.moveCenter(center_point)
 
     def setSize(self):
-        window_size = QSize(300, 210)
+        window_size = QSize(360, 210)
         self.center()
         self.resize(window_size)
