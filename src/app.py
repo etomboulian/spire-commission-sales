@@ -5,7 +5,7 @@ from ui.login_dialog import LoginDialog
 from ui.company_select_dialog import CompanySelectionDialog
 
 
-def run_application():
+def main():
     app = QApplication(sys.argv)
 
     window = MainWindow()
@@ -19,4 +19,4 @@ def run_application():
 
 
 if __name__ == '__main__':
-    run_application()
+    main()
